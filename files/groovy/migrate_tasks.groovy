@@ -19,39 +19,24 @@ if(existingTask) {
 }
 existingTask.each { rtTaks ->
 Map<String,String> currentTask =[:]
-currentTaskid = rtTaksget.getId()
-echo "currentTaskid value is : ${currentTaskid}"
+currentTaskId = rtTaks.getId()
 currentTaskName = rtTaks.getName()
-echo "currentTaskName : ${currentTaskName}"
 currentTaskType = rtTaks.getSchedule()
-echo "currentTaskType : ${currentTaskType}"
 currentTaskConfiguration = rtTaks.getConfiguration()
-echo "currentTaskConfiguration : ${currentTaskConfiguration}"
-currentTaskMail = currentTaskConfiguration.getAlertEmail()
-if(currentTaskType == "daily") {
+currentTaskMail = rtTaks.getAlertEmail()
+currentTaskNotification = rtTaks.getNotificationCondition()
+
+
+currentTask.put('name',currentTaskName)
+currentTask.put('id',currentTaskId)
+currentTask.put('shedule_type',currentTaskType)
+currentTask.put('alertEmail',currentTaskMail)
+currentTask.put('configuration',currentTaskConfiguration)
+currentTask.put('notificationCondition',currentTaskNotification)
+migrationTasks['nexus_scheduled_tasks'].add(currentTask)
 
 }
-if(currentTaskType == "now") {
+scriptResults['action_details'].put(fileName, migrationTasks)
+return JsonOutput.toJson(scriptResults)
 
-}
-if(currentTaskType == "") {
-
-}
-if(currentTaskType == "once") {
-
-}
-if(currentTaskType == "hourly") {
-
-}
-if(currentTaskType == "weekly") {
-
-}
-if(currentTaskType == "monthly") {
-
-}
-
-if(currentTaskid == "repository.maven.purge-unused-snapshots") {
-}
-    
-}
 
