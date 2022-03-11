@@ -167,7 +167,7 @@
     args: "{}"
 
 - name: migrate tasks
-  include_tasks: call_cac_script.yml
+  include_tasks: call_script.yml
   vars:
     script_name: migrate_tasks
     args: "{}"
