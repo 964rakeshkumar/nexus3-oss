@@ -1,4 +1,4 @@
-import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 import org.sonatype.nexus.scheduling.TaskConfiguration
 import org.sonatype.nexus.scheduling.TaskInfo
 import org.sonatype.nexus.scheduling.TaskScheduler
@@ -11,20 +11,10 @@ def fileName = 'tasks.yaml'
 def migrationTasks = ['nexus_scheduled_tasks':[]]
 Map scriptResults = [changed: false, error: false, 'action_details': [:]]
 TaskScheduler taskScheduler = container.lookup(TaskScheduler.class.getName())
-TaskInfo existingTask = taskScheduler.listsTasks()
-if(existingTask) {
-    return
-}
+List<TaskInfo> existingTask = taskScheduler.listsTasks()
 existingTask.each { rtTaks ->
 def curentTaskProperty = []
 Map<String,String> currentTask =[:]
-Map<String,String> currentTaskProperties =[:]
-Map<String,String> currentBooleanTaskProperties =[:]
-
-/*
-Below code line 25 --- to --- 43 is responsible to calculate task schedule type and date & time 
-store the schedule type in Map currentTask
-*/
 Schedule currentTaskScheduleType = rtTaks.getSchedule()
 
 scheduleType = currentTaskScheduleType.getType()
@@ -41,76 +31,80 @@ if(scheduleType == 'monthly'){
     monthly_days = currentTaskScheduleType.getDaysToRun()
     currentTask.put('monthly_days',monthly_days)
 }
-//-----------------------------*-------------------------------------------//
-/*
-Blow code is responsible to calculate tast configuration details 
-*/
-
+if(scheduleType == 'cron'){
+    schedule_cronExpression = currentTaskScheduleType.getCronExpression()
+    currentTask.put('schedule_cronExpression',schedule_cronExpression)
+}
 TaskConfiguration currentTaskConfiguration = rtTaks.getConfiguration()
+
 tasksName = currentTaskConfiguration.getName()
-tasksId = currentTaskConfiguration.getId()
+// tasksId = currentTaskConfiguration.getId() not requried 
 
 tasksTypeId = currentTaskConfiguration.getTypeId()
 tasksTypeName = currentTaskConfiguration.getTypeName()
 tasksAleartMail = currentTaskConfiguration.getAlertEmail()
 tasksNotification = currentTaskConfiguration.getNotificationCondition()
-blobstoreName = getblobstoreName()
-repositoryName = getRepositoryName()
-Map<String,String> taskproperty
-Map<String,Boolean> booleantaskproperty
+tasksRepository = currentTaskConfiguration.getString('repositoryName')
+tasksblobstoreName = currentTaskConfiguration.getString('blobstoreName')
+tasklastUsed = currentTaskConfiguration.getString('lastUsed')
+tasksgroupId = currentTaskConfiguration.getString('groupId')
+tasksartifactId = currentTaskConfiguration.getString('artifactId')
+taskbaseVersion = currentTaskConfiguration.getString('baseVersion')
+tasksrebuildChecksums = currentTaskConfiguration.getString('rebuildChecksums')
+taskyumMetadataCaching = currentTaskConfiguration.getString('yumMetadataCaching')
+tasklocation = currentTaskConfiguration.getString('location')
+tasksAge = currentTaskConfiguration.getString('age')
+taskSource = currentTaskConfiguration.getString('source')
+taskDryrun = currentTaskConfiguration.getString('dryRun')
+taskrestoreBlobMetadata = currentTaskConfiguration.getString('restoreBlobMetadata')
+taskunDeleteReferencedBlobs=currentTaskConfiguration.getString('unDeleteReferencedBlobs')
+taskintegrityCheck=currentTaskConfiguration.getString('integrityCheck')
 
-if(repositoryName !=null && tasksTypeId != 'blobstore.compac'){
-    taskproperty['repositoryName'] = repositoryName
-}
-if (tasksTypeId == 'blobstore.compact' || 'blobstore.rebuildComponentDB') {
-    if(!blobstoreName.empty() || blobstoreName !=null){  
-        taskproperty['blobstoreName']=blobstoreName
-    }
-}
-if (tasksTypeId == 'repository.maven.purge-unused-snapshots') {
-    lastUsed = ''
-    taskproperty['lastUsed'] = lastUsed 
-}
-if (tasksTypeId == 'repository.maven.rebuild-metadata') {
-    groupId = ''
-    artifactId = ''
-    baseVersion = ''
-    rebuildChecksums = true
-    taskproperty['groupId'] = groupId
-    taskproperty['artifactId']= artifactId
-    taskproperty['basrVersion']=baseVersion
-    booleantaskproperty['rebuildChecksums']=rebuildChecksums
-}
-if (tasksTypeId == 'repository.yum.rebuild.metadata'){
-    yumMetadataCaching: true
-    booleantaskproperty['yumMetadataCaching']=yumMetadataCaching
-}
-if(tasksTypeId == 'rebuild.asset.uploadMetadata') {
-    dryRun = true
-    restoreBlobMetadata = true
-    unDeleteReferencedBlobs = true
-    integrityCheck = true
-    booleantaskproperty['dryRun']=dryRun
-    booleantaskproperty['restoreBlobMetadata']=restoreBlobMetadata
-    booleantaskproperty['unDeleteReferencedBlobs']=unDeleteReferencedBlobs
-    booleantaskproperty['integrityCheck']=integrityCheck
-}
-if(tasksTypeId == 'db.backup') {
-    location = ''
-    taskproperty['location']=location
-}
-//adding all in one variable and parsing it to json 
-curentTaskProperty['taskProperties'].add(taskproperty)
-curentTaskProperty['booleanTaskProperties'].add(booleanTaskProperties)
+def taskproperty = [:]
+def boolproperty = [:]
 
-currentTask.put('name',currentTaskName)
+if(tasksTypeId == 'blobstore.compact' || tasksTypeId =='security.purge-api-keys' || tasksTypeId=='blobstore.rebuildComponentDB'){
+    taskproperty.put('blobstoreName',tasksblobstoreName)
+}
+if(tasksTypeId == 'repository.maven.purge-unused-snapshots') {
+    taskproperty.put('lastUsed',tasklastUsed)
+}
+if(tasksTypeId =='script'){
+    taskproperty.put('source',taskSource)
+}
+if(tasksTypeId == 'repository.maven.rebuild-metadata'){
+    taskproperty.put('groupId',tasksgroupId)
+    taskproperty.put('artifactId',tasksartifactId)
+    taskproperty.put('baseVersion',taskbaseVersion)
+    taskproperty.put('rebuildChecksums',tasksrebuildChecksums)
+}
+if(tasksTypeId == 'repository.yum.rebuild.metadata'){
+    boolproperty.put('yumMetadataCaching',taskyumMetadataCaching)
+}
+if(tasksTypeId == 'db.backup'){
+taskproperty.put('location',tasklocation)
+}
+if(tasksTypeId=='rebuild.asset.uploadMetadata'){
+    boolproperty.put('dryRun',taskDryrun)
+    boolproperty.put('restoreBlobMetadata',taskrestoreBlobMetadata)
+    boolproperty.put('unDeleteReferencedBlobs',taskunDeleteReferencedBlobs)
+    boolproperty.put('integrityCheck',taskintegrityCheck)
+}
+
+currentTask.put('name',tasksName)
 currentTask.put('typeId',tasksTypeId)
-currentTask.put('task_alert_email',currentTaskMail)
-currentTask.put('notificationCondition',currentTaskNotification)
+currentTask.put('task_alert_email',tasksAleartMail)
+currentTask.put('notificationCondition',tasksNotification)
+if(tasksTypeId != 'blobstore.compact' && tasksTypeId!='repository.storage-facet-cleanup' && tasksTypeId!='repository.docker.upload-purge' && tasksTypeId!='rebuild.asset.uploadMetadata' && tasksTypeId!='blobstore.rebuildComponentDB' && tasksTypeId!='db.backup' && tasksTypeId!='script'){
+    taskproperty.put('repositoryName',tasksRepository)
+}
+if(! boolproperty.isEmpty()){
+    currentTask.put('booleanTaskProperties',boolproperty)
+}
+if(! taskproperty.isEmpty()){
+currentTask.put('taskProperties',taskproperty)
+}
 migrationTasks['nexus_scheduled_tasks'].add(currentTask)
-migrationTasks['nexus_scheduled_tasks'].add(curentTaskProperty)
 }
 scriptResults['action_details'].put(fileName, migrationTasks)
 return JsonOutput.toJson(scriptResults)
-
-
